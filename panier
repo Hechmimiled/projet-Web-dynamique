@@ -1,0 +1,116 @@
+<?php
+// Mon panier
+session_start();
+include "connexion.php";
+
+if (!isset($_SESSION["user_id"])) {
+    header("Location: login.php");
+    exit;
+}
+
+$user_id = $_SESSION["user_id"];
+$message = "";
+
+// Supprimer un article du panier
+if (isset($_POST["btn_supprimer"])) {
+    $item_id = (int) $_POST["item_id"];
+    $sql_del = "DELETE FROM Panier WHERE ID = $item_id AND Utilisateur_ID = $user_id";
+    if (mysqli_query($conn, $sql_del)) {
+        $message = "Article retire du panier.";
+    }
+}
+
+// Recuperer les articles du panier
+$sql = "SELECT p.*, s.Nom AS ServiceNom, d.Date_dispo, d.Heure_debut, d.Heure_fin
+        FROM Panier p
+        JOIN Services s ON s.ID = p.Service_ID
+        JOIN Disponibilites d ON d.ID = p.Disponibilite_ID
+        WHERE p.Utilisateur_ID = $user_id
+        ORDER BY p.Created_at DESC";
+$resultat = mysqli_query($conn, $sql);
+
+// Calculer le total
+$total = 0;
+$items = array();
+while ($item = mysqli_fetch_assoc($resultat)) {
+    $items[] = $item;
+    $total += $item["Prix"];
+}
+?>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <title>VitaCare - Mon panier</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header>
+    <h1>VitaCare</h1>
+    <div>
+        <a href="profil.php">Mon compte</a>
+        <a href="logout.php">Deconnexion</a>
+    </div>
+</header>
+
+<nav>
+    <a href="index.php">Accueil</a>
+    <a href="services.php">Services</a>
+    <a href="activites.php">Activites</a>
+    <a href="panier.php">Mon panier</a>
+    <a href="notifications.php">Notifications</a>
+</nav>
+
+<main>
+    <h2>Mon panier</h2>
+
+    <?php if ($message != "") { ?>
+        <div class="succes"><?php echo $message; ?></div>
+    <?php } ?>
+
+    <?php if (count($items) == 0) { ?>
+        <p>Votre panier est vide.</p>
+        <a href="services.php"><button>Voir les services</button></a>
+    <?php } else { ?>
+        <table>
+            <tr>
+                <th>Service</th>
+                <th>Date</th>
+                <th>Horaire</th>
+                <th>Prix</th>
+                <th>Action</th>
+            </tr>
+            <?php foreach ($items as $item) { ?>
+                <tr>
+                    <td><?php echo htmlspecialchars($item["ServiceNom"]); ?></td>
+                    <td><?php echo date("d/m/Y", strtotime($item["Date_dispo"])); ?></td>
+                    <td><?php echo substr($item["Heure_debut"], 0, 5) . " - " . substr($item["Heure_fin"], 0, 5); ?></td>
+                    <td><?php echo $item["Prix"]; ?> &euro;</td>
+                    <td>
+                        <form method="post" action="panier.php" style="margin:0;">
+                            <input type="hidden" name="item_id" value="<?php echo $item["ID"]; ?>">
+                            <button type="submit" name="btn_supprimer" class="btn-rouge">Retirer</button>
+                        </form>
+                    </td>
+                </tr>
+            <?php } ?>
+            <tr>
+                <td colspan="3"><strong>TOTAL</strong></td>
+                <td colspan="2"><strong><?php echo $total; ?> &euro;</strong></td>
+            </tr>
+        </table>
+
+        <p style="margin-top: 20px;">
+            <a href="paiement.php"><button>Proceder au paiement</button></a>
+        </p>
+    <?php } ?>
+</main>
+
+<footer>
+    <p>&copy; 2026 VitaCare - Projet ECE ING2</p>
+</footer>
+
+</body>
+</html>
+<?php mysqli_close($conn); ?>
