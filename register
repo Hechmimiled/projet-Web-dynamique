@@ -1,0 +1,146 @@
+<?php
+// Inscription d'un nouveau patient
+session_start();
+include "connexion.php";
+
+// 1. Initialiser les variables
+$nom = "";
+$prenom = "";
+$email = "";
+$telephone = "";
+$mot_de_passe = "";
+$mot_de_passe2 = "";
+$erreur = "";
+$succes = "";
+
+// 2. Verifier si le formulaire est soumis
+if (isset($_POST["btn_inscription"])) {
+
+    // 3. Recuperer les donnees
+    $nom = isset($_POST["nom"]) ? $_POST["nom"] : "";
+    $prenom = isset($_POST["prenom"]) ? $_POST["prenom"] : "";
+    $email = isset($_POST["email"]) ? $_POST["email"] : "";
+    $telephone = isset($_POST["telephone"]) ? $_POST["telephone"] : "";
+    $mot_de_passe = isset($_POST["mot_de_passe"]) ? $_POST["mot_de_passe"] : "";
+    $mot_de_passe2 = isset($_POST["mot_de_passe2"]) ? $_POST["mot_de_passe2"] : "";
+
+    // 4. Valider les donnees
+    if (empty($nom)) {
+        $erreur .= "Le nom est requis.<br>";
+    }
+    if (empty($prenom)) {
+        $erreur .= "Le prenom est requis.<br>";
+    }
+    if (empty($email)) {
+        $erreur .= "L'email est requis.<br>";
+    }
+    if (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $erreur .= "L'email n'est pas valide.<br>";
+    }
+    if (empty($mot_de_passe)) {
+        $erreur .= "Le mot de passe est requis.<br>";
+    }
+    if (strlen($mot_de_passe) < 6) {
+        $erreur .= "Le mot de passe doit faire au moins 6 caracteres.<br>";
+    }
+    if ($mot_de_passe != $mot_de_passe2) {
+        $erreur .= "Les mots de passe ne correspondent pas.<br>";
+    }
+
+    // Verifier que l'email n'est pas deja utilise
+    if ($erreur == "") {
+        $sql_check = "SELECT ID FROM Utilisateurs WHERE Email = '$email'";
+        $res_check = mysqli_query($conn, $sql_check);
+        if (mysqli_num_rows($res_check) > 0) {
+            $erreur .= "Cet email est deja utilise.<br>";
+        }
+    }
+
+    // 5. Traitements / insertion en base
+    if ($erreur == "") {
+        $mdp_hash = md5($mot_de_passe);
+        $sql = "INSERT INTO Utilisateurs (Nom, Prenom, Email, MotDePasse, Telephone, Role)
+                VALUES ('$nom', '$prenom', '$email', '$mdp_hash', '$telephone', 'patient')";
+        if (mysqli_query($conn, $sql)) {
+            $nouveau_id = mysqli_insert_id($conn);
+            // Notification de bienvenue
+            $msg = "Bienvenue sur VitaCare ! Decouvrez nos services et activites.";
+            $sql_notif = "INSERT INTO Notifications (Utilisateur_ID, Message) VALUES ($nouveau_id, '$msg')";
+            mysqli_query($conn, $sql_notif);
+
+            $succes = "Inscription reussie. Vous pouvez maintenant vous connecter.";
+            // Reinitialiser le formulaire
+            $nom = $prenom = $email = $telephone = "";
+        } else {
+            $erreur = "Erreur lors de l'inscription : " . mysqli_error($conn);
+        }
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <title>VitaCare - Inscription</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header>
+    <h1>VitaCare</h1>
+    <div>
+        <a href="login.php">Connexion</a>
+    </div>
+</header>
+
+<nav>
+    <a href="index.php">Accueil</a>
+    <a href="services.php">Services</a>
+    <a href="activites.php">Activites</a>
+</nav>
+
+<main>
+    <a class="retour" href="index.php">&larr; Retour a l'accueil</a>
+    <h2>Inscription</h2>
+
+    <?php
+    if ($erreur != "") {
+        echo '<div class="erreur">' . $erreur . '</div>';
+    }
+    if ($succes != "") {
+        echo '<div class="succes">' . $succes . '</div>';
+    }
+    ?>
+
+    <form method="post" action="register.php">
+        <label>Nom :</label>
+        <input type="text" name="nom" value="<?php echo htmlspecialchars($nom); ?>">
+
+        <label>Prenom :</label>
+        <input type="text" name="prenom" value="<?php echo htmlspecialchars($prenom); ?>">
+
+        <label>Email :</label>
+        <input type="email" name="email" value="<?php echo htmlspecialchars($email); ?>">
+
+        <label>Telephone :</label>
+        <input type="tel" name="telephone" value="<?php echo htmlspecialchars($telephone); ?>">
+
+        <label>Mot de passe (6 caracteres minimum) :</label>
+        <input type="password" name="mot_de_passe">
+
+        <label>Confirmer le mot de passe :</label>
+        <input type="password" name="mot_de_passe2">
+
+        <button type="submit" name="btn_inscription">S'inscrire</button>
+    </form>
+
+    <p>Deja inscrit ? <a href="login.php">Se connecter</a></p>
+</main>
+
+<footer>
+    <p>&copy; 2026 VitaCare - Projet ECE ING2</p>
+</footer>
+
+</body>
+</html>
+<?php mysqli_close($conn); ?>
